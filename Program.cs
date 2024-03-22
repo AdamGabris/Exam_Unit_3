@@ -56,7 +56,7 @@ string Greeting(string name)
 // Output
 
 
-
+ReadArrayFile("arrays.json");
 
 
 
@@ -64,21 +64,90 @@ string Greeting(string name)
 
 // Functions
 
+void ReadArrayFile(string filename)
+{
+    string jsonArray = File.ReadAllText(filename);
+    JsonDocument source = JsonDocument.Parse(jsonArray);
+    List<int> flattenedArray = FlattenArray(source.RootElement);
+    Console.WriteLine(string.Join(", ", flattenedArray));
+}
 
 
+List<int> FlattenArray(JsonElement element)
+{
+    List<int> result = new List<int>();
+
+    if (element.ValueKind == JsonValueKind.Array)
+    {
+        foreach (JsonElement item in element.EnumerateArray())
+        {
+            result.AddRange(FlattenArray(item));
+        }
+    }
+    else if (element.ValueKind == JsonValueKind.Number)
+    {
+        result.Add(element.GetInt32());
+    }
+
+    return result;
+}
 #endregion
 
 #region Task 3
 
 // Output
 
-
+//ReadNodeFile("nodes.json");
 
 
 // Functions
 
 
+void ReadNodeFile(string filename)
+{
+    string jsonNodes = File.ReadAllText(filename);
+    Node node = JsonSerializer.Deserialize<Node>(jsonNodes);
+    int sum = CalculateSum(node);
+    Console.WriteLine(sum);
+    int depth = CalculateDepth(node);
+    Console.WriteLine(depth);
+    int count = CountNodes(node);
+    Console.WriteLine(count);
+}
 
+
+int CalculateSum(Node node)
+{
+    if (node == null)
+    {
+        return 0;
+    }
+
+    return node.value + CalculateSum(node.left) + CalculateSum(node.right);
+}
+
+int CalculateDepth(Node node)
+{
+    if (node == null)
+    {
+        return 0;
+    }
+
+    int leftDepth = CalculateDepth(node.left);
+    int rightDepth = CalculateDepth(node.right);
+
+    return Math.Max(leftDepth, rightDepth) + 1;
+}
+
+int CountNodes(Node node)
+{
+    if (node == null)
+    {
+        return 0;
+    }
+
+    return 1 + CountNodes(node.left) + CountNodes(node.right);
+}
 
 
 #endregion
@@ -107,8 +176,12 @@ void ReadBooksFromFile(string filename)
     List<string> isbnForAuthor = GetISBNForAuthor(books, "Terry Pratchett");
     List<Book> booksAlphabetically = ListAllBooksAlphabetically(books, true);
     List<Book> booksChronologically = ListAllBooksChronologically(books, true);
-    List<Book> booksGroupedByLastName = GroupBooksByLastName(books);
-    List<Book> booksGroupedByFirstName = GroupBooksByFirstName(books);
+    //Dictionary<string, List<string>> booksGroupedByLastName = GroupBooksByAuthorLastName(books);
+    //PrintBooksByAuthorLastName(booksGroupedByLastName);
+    Dictionary<string, List<string>> booksGroupedByFirstName = GroupBooksByAuthorFirstName(books);
+    PrintBooksByAuthorFirstName(booksGroupedByFirstName);
+
+
 
 
     /*  foreach (var book in books)
@@ -147,10 +220,10 @@ void ReadBooksFromFile(string filename)
         {
             Console.WriteLine($"Title: {book.title}, Author: {book.author}, Publication Year: {book.publication_year}, ISBN: {book.isbn}");
         } */
-    foreach (var book in booksGroupedByFirstName)
-    {
-        Console.WriteLine($"Title: {book.title}, Author: {book.author}, Publication Year: {book.publication_year}, ISBN: {book.isbn}");
-    }
+    /*     foreach (var book in booksGroupedByFirstName)
+        {
+            Console.WriteLine($"Title: {book.title}, Author: {book.author}, Publication Year: {book.publication_year}, ISBN: {book.isbn}");
+        } */
 
 }
 
@@ -325,49 +398,101 @@ List<Book> ListAllBooksChronologically(List<Book> books, bool ascending)
     return books;
 }
 
-List<Book> GroupBooksByLastName(List<Book> books)
+Dictionary<string, List<string>> GroupBooksByAuthorLastName(List<Book> books)
 {
-    List<Book> result = new List<Book>();
-    List<string> lastNames = GetAuthorLastName(books);
-    List<string> firstNames = GetAuthorFirstName(books);
-    for (int i = 0; i < lastNames.Count; i++)
+    Dictionary<string, List<string>> result = new Dictionary<string, List<string>>();
+    foreach (var book in books)
     {
-        for (int j = i + 1; j < lastNames.Count; j++)
+        string authorLastName = GetAuthorLastName(new List<Book> { book })[0];
+        if (result.ContainsKey(authorLastName))
         {
-            if (lastNames[i] == lastNames[j])
-            {
-                if (firstNames[i] == firstNames[j])
-                {
-                    result.Add(books[i]);
-                    result.Add(books[j]);
-                }
-            }
+            result[authorLastName].Add(book.title);
+        }
+        else
+        {
+            result[authorLastName] = new List<string> { book.title };
         }
     }
     return result;
 }
 
-List<Book> GroupBooksByFirstName(List<Book> books)
+Dictionary<string, List<string>> GroupBooksByAuthorFirstName(List<Book> books)
 {
-    List<Book> result = new List<Book>();
-    List<string> lastNames = GetAuthorLastName(books);
-    List<string> firstNames = GetAuthorFirstName(books);
-    for (int i = 0; i < lastNames.Count; i++)
+    Dictionary<string, List<string>> result = new Dictionary<string, List<string>>();
+    foreach (var book in books)
     {
-        for (int j = i + 1; j < lastNames.Count; j++)
+        string authorFirstName = GetAuthorFirstName(new List<Book> { book })[0];
+        if (result.ContainsKey(authorFirstName))
         {
-            if (firstNames[i] == firstNames[j])
-            {
-                if (lastNames[i] == lastNames[j])
-                {
-                    result.Add(books[i]);
-                    result.Add(books[j]);
-                }
-            }
+            result[authorFirstName].Add(book.title);
+        }
+        else
+        {
+            result[authorFirstName] = new List<string> { book.title };
         }
     }
     return result;
 }
+
+void PrintBooksByAuthorLastName(Dictionary<string, List<string>> booksByAuthorLastName)
+{
+    List<string> authors = new List<string>(booksByAuthorLastName.Keys);
+    int n = authors.Count;
+
+    for (int i = 0; i < n - 1; i++)
+    {
+        for (int j = 0; j < n - i - 1; j++)
+        {
+            if (string.Compare(authors[j], authors[j + 1]) > 0)
+            {
+                string temp = authors[j];
+                authors[j] = authors[j + 1];
+                authors[j + 1] = temp;
+            }
+        }
+    }
+
+    foreach (var author in authors)
+    {
+        Console.WriteLine($"Author: {author}; Books: {string.Join(", ", booksByAuthorLastName[author])}");
+    }
+}
+
+void PrintBooksByAuthorFirstName(Dictionary<string, List<string>> booksByAuthorFirstName)
+{
+    List<string> authors = new List<string>(booksByAuthorFirstName.Keys);
+    int n = authors.Count;
+
+    for (int i = 0; i < n - 1; i++)
+    {
+        for (int j = 0; j < n - i - 1; j++)
+        {
+            if (string.Compare(authors[j], authors[j + 1]) > 0)
+            {
+                string temp = authors[j];
+                authors[j] = authors[j + 1];
+                authors[j + 1] = temp;
+            }
+        }
+    }
+
+    foreach (var author in authors)
+    {
+        Console.WriteLine($"Author: {author}; Books: {string.Join(", ", booksByAuthorFirstName[author])}");
+    }
+}
+
+#endregion
+
+#region Classes
+
+public class Node
+{
+    public int value { get; set; }
+    public Node right { get; set; }
+    public Node left { get; set; }
+}
+
 
 public class Book
 {
